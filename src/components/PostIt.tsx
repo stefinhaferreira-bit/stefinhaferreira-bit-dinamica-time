@@ -1,5 +1,4 @@
 import type { ItemCategory } from '../types'
-import { WRITING_GUIDE } from '../types'
 
 const postItStyles: Record<
   ItemCategory | 'default' | 'fase2' | 'fase3',
@@ -102,43 +101,3 @@ export function PostIt({
   )
 }
 
-export function WritingGuide() {
-  return (
-    <div className="card border-amber-200/60 bg-gradient-to-r from-amber-50 to-yellow-50 p-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h3 className="font-display font-semibold text-amber-900">
-            {WRITING_GUIDE.title}
-          </h3>
-          <p className="mt-1 text-sm text-amber-800/80">
-            Escreva em uma frase curta, no formato:
-          </p>
-          <p className="mt-2 inline-block rounded-lg bg-white/70 px-3 py-1.5 font-mono text-sm font-semibold text-amber-900 ring-1 ring-amber-200/60">
-            {WRITING_GUIDE.format}
-          </p>
-          <p className="mt-2 text-xs text-amber-700/70">{WRITING_GUIDE.hint}</p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3 lg:max-w-2xl">
-          <div className="rounded-lg bg-emerald-100/60 p-3">
-            <p className="text-xs font-bold text-emerald-800">Que bom!</p>
-            <p className="mt-1 text-[11px] text-emerald-700/80">
-              Daily de 15min — time alinhado toda manhã
-            </p>
-          </div>
-          <div className="rounded-lg bg-rose-100/60 p-3">
-            <p className="text-xs font-bold text-rose-800">Que pena...</p>
-            <p className="mt-1 text-[11px] text-rose-700/80">
-              Reuniões sem pauta — horas perdidas
-            </p>
-          </div>
-          <div className="rounded-lg bg-sky-100/60 p-3">
-            <p className="text-xs font-bold text-sky-800">Que tal...</p>
-            <p className="mt-1 text-[11px] text-sky-700/80">
-              Quadro de prioridades — toda segunda
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}

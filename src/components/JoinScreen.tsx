@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { JoinInfo } from '../types'
 import { generateRoomCode } from '../types'
 import { saveJoinInfo } from '../hooks/useSession'
+import { WorkshopAgenda } from './WorkshopAgenda'
 
 interface JoinScreenProps {
   onJoin: (info: JoinInfo) => void
@@ -116,13 +117,11 @@ export function JoinScreen({ onJoin }: JoinScreenProps) {
           </button>
         </form>
 
-        <div className="mt-6 rounded-xl bg-slate-50 p-4">
-          <p className="text-xs font-medium text-slate-600">Como funciona</p>
-          <ol className="mt-2 space-y-1 text-xs text-slate-500">
-            <li>1. Uma pessoa cria a sala e compartilha o link</li>
-            <li>2. Todos entram com seu nome</li>
-            <li>3. Escrevam juntos — as mudanças aparecem em tempo real</li>
-          </ol>
+        <div className="mt-6 space-y-4">
+          <WorkshopAgenda />
+          <p className="text-center text-xs text-slate-400">
+            Crie a sala, compartilhe o link e todos entram com o nome
+          </p>
         </div>
       </div>
     </div>

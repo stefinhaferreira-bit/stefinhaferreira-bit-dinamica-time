@@ -99,6 +99,9 @@ function CollaborativeApp({
         {state.currentStep === 1 && (
           <StepColeta
             items={state.items}
+            teamName={state.teamName}
+            date={state.date}
+            roomId={session.roomId}
             onAdd={session.addItem}
             onRemove={session.removeItem}
             onNext={() => session.setStep(2)}

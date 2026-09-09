@@ -1,10 +1,15 @@
 import { useState } from 'react'
 import type { Item, ItemCategory } from '../types'
-import { CATEGORY_CONFIG, WRITING_GUIDE } from '../types'
-import { PostIt, WritingGuide } from './PostIt'
+import { CATEGORY_CONFIG } from '../types'
+import { exportColetaToExcel } from '../utils/export'
+import { PostIt } from './PostIt'
+import { WorkshopAgenda } from './WorkshopAgenda'
 
 interface StepColetaProps {
   items: Item[]
+  teamName: string
+  date: string
+  roomId: string
   onAdd: (text: string, category: ItemCategory) => void
   onRemove: (id: string) => void
   onNext: () => void
@@ -80,7 +85,7 @@ function CategoryColumn({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={WRITING_GUIDE.placeholder}
+          placeholder="Escreva sua ideia..."
           className="input-field w-full text-sm"
         />
         <button
@@ -118,8 +123,13 @@ function CategoryColumn({
   )
 }
 
-export function StepColeta({ items, onAdd, onRemove, onNext }: StepColetaProps) {
+export function StepColeta({ items, teamName, date, roomId, onAdd, onRemove, onNext }: StepColetaProps) {
   const canProceed = items.length > 0
+
+  const handleExportBackup = () => {
+    if (items.length === 0) return
+    exportColetaToExcel(items, { teamName, date, roomId })
+  }
 
   return (
     <div className="space-y-8">
@@ -132,7 +142,7 @@ export function StepColeta({ items, onAdd, onRemove, onNext }: StepColetaProps) 
         </p>
       </div>
 
-      <WritingGuide />
+      <WorkshopAgenda />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {CATEGORIES.map((cat) => (
@@ -146,9 +156,29 @@ export function StepColeta({ items, onAdd, onRemove, onNext }: StepColetaProps) 
         ))}
       </div>
 
+      <div className="card border-slate-200 bg-slate-50/80 p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-700">Plano B — backup em Excel</p>
+            <p className="mt-1 text-xs text-slate-500 max-w-xl">
+              Se a internet falhar ou der problema na sala, baixe os post-its da etapa 1
+              e continue a consolidação manualmente (quadro, Miro, planilha).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleExportBackup}
+            className="btn-secondary shrink-0 text-sm"
+            disabled={items.length === 0}
+          >
+            Baixar etapa 1 (.csv / Excel)
+          </button>
+        </div>
+      </div>
+
       <div className="flex justify-end">
         <button type="button" onClick={onNext} className="btn-primary" disabled={!canProceed}>
-          Avançar para Fases →
+          Avançar para Consolidação →
         </button>
       </div>
     </div>

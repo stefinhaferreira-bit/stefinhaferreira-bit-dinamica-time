@@ -57,17 +57,15 @@ export interface Cluster {
   prazo: string
 }
 
-export const WRITING_GUIDE = {
-  title: 'Como escrever cada post-it',
-  format: 'O quê — complemento breve',
-  hint: 'Use traço (—) para separar. Consolide só o que é a mesma frente (ex.: PM TI ≠ PM RH).',
-  examples: [
-    'Daily de 15min — time alinhado toda manhã',
-    'Onboarding lento — 2 meses pra produzir',
-    'Dashboard de indicadores — visibilidade para diretoria',
+export const WORKSHOP_AGENDA = {
+  total: '1h30',
+  steps: [
+    { minutes: 25, label: 'Coleta' },
+    { minutes: 25, label: 'Consolidação' },
+    { minutes: 20, label: 'Priorização' },
+    { minutes: 20, label: 'Plano' },
   ],
-  placeholder: 'Ex: Definir papéis — como assim?',
-}
+} as const
 
 export type StepNum = 1 | 2 | 3 | 4
 
