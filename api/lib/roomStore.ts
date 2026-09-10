@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis'
-import type { Participant, SessionState } from '../../src/types.js'
+import type { Participant, SessionState, StepNum } from '../../src/types.js'
 
 export interface RoomParticipant {
   id: string
@@ -62,10 +62,29 @@ export async function getOrCreateRoom(roomId: string): Promise<RoomData> {
   return fresh
 }
 
+function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
+  const map = new Map(current.map((entry) => [entry.id, entry]))
+  for (const entry of incoming) map.set(entry.id, entry)
+  return Array.from(map.values())
+}
+
+export function mergeSessionState(current: SessionState, incoming: SessionState): SessionState {
+  const items = mergeById(current.items, incoming.items)
+  const clusters = mergeById(current.clusters, incoming.clusters)
+
+  return {
+    teamName: incoming.teamName.trim() ? incoming.teamName : current.teamName,
+    date: incoming.date.trim() ? incoming.date : current.date,
+    items,
+    clusters,
+    currentStep: Math.max(current.currentStep, incoming.currentStep) as StepNum,
+  }
+}
+
 export function activeParticipants(
   participants: Record<string, RoomParticipant>
 ): Participant[] {
-  const cutoff = Date.now() - 30_000
+  const cutoff = Date.now() - 90_000
   return Object.values(participants)
     .filter((p) => p.lastSeen >= cutoff)
     .map((p) => ({ id: p.id, name: p.name }))
@@ -86,7 +105,7 @@ export function touchParticipant(
 }
 
 export function pruneParticipants(room: RoomData): RoomData {
-  const cutoff = Date.now() - 30_000
+  const cutoff = Date.now() - 90_000
   const participants: Record<string, RoomParticipant> = {}
   for (const [id, p] of Object.entries(room.participants)) {
     if (p.lastSeen >= cutoff) participants[id] = p

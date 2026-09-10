@@ -6,10 +6,13 @@ import { SimulationBanner } from './components/SimulationBanner'
 import { StepClusters } from './components/StepClusters'
 import { StepColeta } from './components/StepColeta'
 import { StepPlano } from './components/StepPlano'
+import { ModeSwitcher, type WorkshopMode } from './components/ModeSwitcher'
+import { StepPhotoImport } from './components/StepPhotoImport'
 import { StepPriorizacao } from './components/StepPriorizacao'
 import { getSimulationState } from './data/simulation'
 import { clearJoinInfo, loadJoinInfo, useSession } from './hooks/useSession'
 import type { JoinInfo } from './types'
+import type { PhotoImportEntry } from './components/StepPhotoImport'
 
 export default function App() {
   const [joinInfo, setJoinInfo] = useState<JoinInfo | null>(loadJoinInfo)
@@ -38,12 +41,23 @@ function CollaborativeApp({
   const { state } = session
   const [isSimulation, setIsSimulation] = useState(false)
   const [showSimBanner, setShowSimBanner] = useState(false)
+  const [workshopMode, setWorkshopMode] = useState<WorkshopMode>('online')
+  const [photoReady, setPhotoReady] = useState(false)
+
+  const handlePhotoImport = (entries: PhotoImportEntry[]) => {
+    session.bulkAddItems(entries)
+    session.autoConsolidate()
+    session.setStep(2)
+    setPhotoReady(true)
+  }
 
   const handleReset = () => {
     if (window.confirm('Reiniciar a sessão? Todos os dados serão apagados.')) {
       session.resetSession()
       setIsSimulation(false)
       setShowSimBanner(false)
+      setPhotoReady(false)
+      setWorkshopMode('online')
     }
   }
 
@@ -79,24 +93,39 @@ function CollaborativeApp({
 
       {isSimulation && showSimBanner && <SimulationBanner onDismiss={() => setShowSimBanner(false)} />}
 
-      <ParticipantsBar
-        participants={session.participants}
-        connected={session.connected}
-        roomId={session.roomId}
-        shareUrl={session.shareUrl}
-        currentName={joinInfo.participantName}
-      />
+      {session.syncError && (
+        <div className="border-b border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+          ⚠️ {session.syncError}
+        </div>
+      )}
+
+      {workshopMode === 'online' && (
+        <ParticipantsBar
+          participants={session.participants}
+          connected={session.connected}
+          roomId={session.roomId}
+          shareUrl={session.shareUrl}
+          currentName={joinInfo.participantName}
+        />
+      )}
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="mb-10">
-          <StepIndicator
-            currentStep={state.currentStep}
-            onStepClick={session.setStep}
-            freeNavigation={isSimulation}
-          />
+        <div className="mb-8 space-y-6">
+          <ModeSwitcher mode={workshopMode} onChange={setWorkshopMode} />
+          {(workshopMode === 'online' || photoReady) && (
+            <StepIndicator
+              currentStep={state.currentStep}
+              onStepClick={session.setStep}
+              freeNavigation={isSimulation || photoReady}
+            />
+          )}
         </div>
 
-        {state.currentStep === 1 && (
+        {workshopMode === 'photo' && !photoReady && (
+          <StepPhotoImport onImport={handlePhotoImport} />
+        )}
+
+        {workshopMode === 'online' && state.currentStep === 1 && (
           <StepColeta
             items={state.items}
             teamName={state.teamName}
@@ -108,7 +137,8 @@ function CollaborativeApp({
           />
         )}
 
-        {state.currentStep === 2 && (
+        {((workshopMode === 'online' && state.currentStep === 2) ||
+          (workshopMode === 'photo' && photoReady && state.currentStep === 2)) && (
           <StepClusters
             items={state.items}
             clusters={state.clusters}
@@ -117,12 +147,15 @@ function CollaborativeApp({
             onDeleteCluster={session.deleteCluster}
             onAssignToCluster={session.assignToCluster}
             onAutoConsolidate={session.autoConsolidate}
-            onBack={() => session.setStep(1)}
+            onBack={() => {
+              if (workshopMode === 'photo') setPhotoReady(false)
+              else session.setStep(1)
+            }}
             onNext={() => session.setStep(3)}
           />
         )}
 
-        {state.currentStep === 3 && (
+        {state.currentStep === 3 && (workshopMode === 'online' || photoReady) && (
           <StepPriorizacao
             clusters={state.clusters}
             onSetQuadrant={session.setClusterQuadrant}
@@ -131,7 +164,7 @@ function CollaborativeApp({
           />
         )}
 
-        {state.currentStep === 4 && (
+        {state.currentStep === 4 && (workshopMode === 'online' || photoReady) && (
           <StepPlano
             items={state.items}
             clusters={state.clusters}

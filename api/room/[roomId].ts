@@ -4,6 +4,7 @@ import {
   activeParticipants,
   defaultSessionState,
   getOrCreateRoom,
+  mergeSessionState,
   pruneParticipants,
   saveRoom,
   touchParticipant,
@@ -65,7 +66,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!nextState) {
           return res.status(400).json({ error: 'state é obrigatório' })
         }
-        room = { ...room, state: nextState }
+        room = await getOrCreateRoom(roomId)
+        room = { ...room, state: mergeSessionState(room.state, nextState) }
         const participantId = String(body.participantId ?? '')
         const name = String(body.name ?? '').trim()
         if (participantId && name) {

@@ -36,16 +36,39 @@ async function roomRequest(
   roomId: string,
   body?: Record<string, unknown>
 ): Promise<RoomResponse> {
-  const res = await fetch(roomUrl(roomId), {
-    method: body ? 'POST' : 'GET',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error((err as { error?: string }).error ?? 'Falha na sincronização')
+  let res: Response
+  try {
+    res = await fetch(roomUrl(roomId), {
+      method: body ? 'POST' : 'GET',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    })
+  } catch {
+    throw new Error(
+      'Não foi possível contactar a API. Rode npm run dev (ou npm start após build) e abra http://localhost:3000.'
+    )
   }
-  return res.json() as Promise<RoomResponse>
+
+  const raw = await res.text()
+  if (raw.trim().startsWith('<!')) {
+    throw new Error(
+      'A API não está ativa neste endereço. Use npm run dev e abra http://localhost:3000 (não use só o Vite nem o servidor antigo da porta 3001).'
+    )
+  }
+
+  let data: RoomResponse | { error?: string }
+  try {
+    data = JSON.parse(raw) as RoomResponse | { error?: string }
+  } catch {
+    throw new Error('Resposta inválida do servidor. Verifique se a API /api/room está rodando.')
+  }
+
+  if (!res.ok) {
+    const err = data as { error?: string }
+    throw new Error(err.error ?? 'Falha na sincronização')
+  }
+
+  return data as RoomResponse
 }
 
 export function loadJoinInfo(): JoinInfo | null {
@@ -82,6 +105,7 @@ export function useSession(joinInfo: JoinInfo) {
   const [state, setState] = useState<SessionState>(defaultState)
   const [participants, setParticipants] = useState<Participant[]>([])
   const [connected, setConnected] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
   const isRemoteUpdate = useRef(false)
   const isPushing = useRef(false)
   const joinInfoRef = useRef(joinInfo)
@@ -94,6 +118,7 @@ export function useSession(joinInfo: JoinInfo) {
     }
     setParticipants(data.participants)
     setConnected(true)
+    setSyncError(null)
   }, [])
 
   useEffect(() => {
@@ -111,7 +136,12 @@ export function useSession(joinInfo: JoinInfo) {
         })
         if (active) applyRoom(data)
       } catch {
-        if (active) setConnected(false)
+        if (active) {
+          setConnected(false)
+          setSyncError(
+            'Sem conexão com o servidor. Todos precisam abrir o MESMO link (não use localhost em máquinas diferentes).'
+          )
+        }
       }
     }
 
@@ -125,7 +155,12 @@ export function useSession(joinInfo: JoinInfo) {
         })
         if (active) applyRoom(data)
       } catch {
-        if (active) setConnected(false)
+        if (active) {
+          setConnected(false)
+          setSyncError(
+            'Sem conexão com o servidor. Todos precisam abrir o MESMO link (não use localhost em máquinas diferentes).'
+          )
+        }
       }
     }
 
@@ -152,6 +187,7 @@ export function useSession(joinInfo: JoinInfo) {
         applyRoom(data)
       } catch {
         setConnected(false)
+        setSyncError('Falha ao salvar. Verifique se todos usam o mesmo link da sala.')
       } finally {
         isPushing.current = false
         isRemoteUpdate.current = false
@@ -191,6 +227,21 @@ export function useSession(joinInfo: JoinInfo) {
       updateState((s) => ({
         ...s,
         items: [...s.items, createItem(trimmed, category)],
+      }))
+    },
+    [updateState]
+  )
+
+  const bulkAddItems = useCallback(
+    (entries: { text: string; category: ItemCategory }[]) => {
+      const newItems = entries
+        .map((e) => ({ text: e.text.trim(), category: e.category }))
+        .filter((e) => e.text.length >= 3)
+        .map((e) => createItem(e.text, e.category))
+      if (newItems.length === 0) return
+      updateState((s) => ({
+        ...s,
+        items: [...s.items, ...newItems],
       }))
     },
     [updateState]
@@ -301,11 +352,13 @@ export function useSession(joinInfo: JoinInfo) {
     state,
     participants,
     connected,
+    syncError,
     shareUrl,
     roomId: joinInfo.roomId,
     setTeamName,
     setDate,
     addItem,
+    bulkAddItems,
     removeItem,
     createNewCluster,
     updateCluster,

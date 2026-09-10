@@ -1,3 +1,4 @@
+/** @deprecated Use `npm run dev` ou `npm start` (server/serve.ts). Este servidor Socket.io não tem /api/room. */
 import express from 'express'
 import { createServer } from 'http'
 import { Server } from 'socket.io'

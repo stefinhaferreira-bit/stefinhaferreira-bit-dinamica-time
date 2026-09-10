@@ -72,6 +72,9 @@ export function ParticipantsBar({
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-400">
             {participants.length} online
+            {participants.length < 2 && connected && (
+              <span className="ml-1 text-amber-600">· convide com o mesmo link</span>
+            )}
           </span>
           <div className="flex -space-x-2">
             {participants.map((p) => (
