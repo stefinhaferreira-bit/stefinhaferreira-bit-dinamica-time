@@ -1,4 +1,3 @@
-import { createWorker } from 'tesseract.js'
 import type { ItemCategory } from '../types'
 
 export interface OcrEntry {
@@ -152,6 +151,9 @@ async function recognizeText(
   file: File,
   onProgress?: (progress: number, fileName: string) => void
 ): Promise<string> {
+  if (!import.meta.env.DEV) return ''
+
+  const { createWorker } = await import('tesseract.js')
   const worker = await createWorker('por', 1, {
     logger: (message) => {
       if (message.status === 'recognizing text' && onProgress) {
