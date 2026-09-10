@@ -9,7 +9,7 @@ import {
   saveRoom,
   touchParticipant,
 } from '../api/lib/roomStore'
-import { analyzeImageWithOpus, type BoardLayout } from '../api/lib/visionAnalyze'
+import { analyzeImageWithOpus, type BoardLayout } from './visionAnalyze'
 
 export async function handleRoom(
   roomId: string,
@@ -68,7 +68,7 @@ export function createApp(): Express {
   const app = express()
   app.use(express.json({ limit: '15mb' }))
 
-  app.post('/api/vision/analyze', async (req, res) => {
+  app.post('/api/analyze', async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*')
     try {
       const imageBase64 = String(req.body?.imageBase64 ?? '').trim()

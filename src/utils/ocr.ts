@@ -235,7 +235,7 @@ async function analyzeImageWithOpus(
   const { base64, mediaType } = await fileToBase64(file)
   onProgress?.(0.25, file.name)
 
-  const response = await fetch('/api/vision/analyze', {
+  const response = await fetch('/api/analyze', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ imageBase64: base64, mediaType, layout }),

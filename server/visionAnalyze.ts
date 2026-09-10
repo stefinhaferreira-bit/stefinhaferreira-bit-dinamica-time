@@ -1,4 +1,4 @@
-import type { ItemCategory } from './types.js'
+import type { ItemCategory } from '../api/lib/types.js'
 
 export type BoardLayout = 'auto' | 'start-stop-continue' | 'que-bom-pena-tal'
 
@@ -29,19 +29,14 @@ function buildPrompt(layout: BoardLayout): string {
 ${LAYOUT_HINT[layout]}
 
 Extraia SOMENTE o texto dos post-its (cartões), um item por post-it.
-IGNORE: título do quadro, texto explicativo, nomes de autores (ex. Stefani Ferreira), ícones, UI do Miro/Teams.
-
-Corrija levemente erros óbvios de OCR (ex.: "visibildide" → "visibilidade") mantendo o sentido original.
+IGNORE: título do quadro, texto explicativo, nomes de autores, ícones, UI do Miro/Teams.
 
 Responda APENAS com JSON válido, sem markdown:
-{"entries":[{"text":"texto do post-it","category":"que_bom|que_pena|que_tal"}]}
-
-Use exatamente as categorias: que_bom, que_pena, que_tal.`
+{"entries":[{"text":"texto do post-it","category":"que_bom|que_pena|que_tal"}]}`
 }
 
 function parseVisionResponse(raw: string): VisionEntry[] {
-  const trimmed = raw.trim()
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/)
+  const jsonMatch = raw.trim().match(/\{[\s\S]*\}/)
   if (!jsonMatch) return []
 
   const parsed = JSON.parse(jsonMatch[0]) as { entries?: { text?: string; category?: string }[] }
@@ -53,8 +48,7 @@ function parseVisionResponse(raw: string): VisionEntry[] {
   for (const item of parsed.entries) {
     const text = String(item.text ?? '').trim()
     const category = item.category as ItemCategory
-    if (text.length < 3) continue
-    if (!VALID_CATEGORIES.has(category)) continue
+    if (text.length < 3 || !VALID_CATEGORIES.has(category)) continue
     const key = `${category}|${text.toLowerCase()}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -66,13 +60,10 @@ function parseVisionResponse(raw: string): VisionEntry[] {
 
 export async function analyzeImageWithOpus(input: VisionAnalyzeInput): Promise<VisionEntry[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY não configurada')
-  }
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY não configurada')
 
   const model = process.env.ANTHROPIC_MODEL ?? 'claude-opus-4-20250514'
   const layout = input.layout ?? 'auto'
-  const mediaType = input.mediaType || 'image/jpeg'
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -92,14 +83,11 @@ export async function analyzeImageWithOpus(input: VisionAnalyzeInput): Promise<V
               type: 'image',
               source: {
                 type: 'base64',
-                media_type: mediaType,
+                media_type: input.mediaType || 'image/jpeg',
                 data: input.imageBase64,
               },
             },
-            {
-              type: 'text',
-              text: buildPrompt(layout),
-            },
+            { type: 'text', text: buildPrompt(layout) },
           ],
         },
       ],
@@ -111,10 +99,7 @@ export async function analyzeImageWithOpus(input: VisionAnalyzeInput): Promise<V
     throw new Error(`Claude Opus: ${response.status} — ${err.slice(0, 200)}`)
   }
 
-  const data = (await response.json()) as {
-    content?: { type: string; text?: string }[]
-  }
-
+  const data = (await response.json()) as { content?: { type: string; text?: string }[] }
   const textBlock = data.content?.find((c) => c.type === 'text')
   if (!textBlock?.text) return []
 
