@@ -28,6 +28,22 @@ interface RoomResponse {
   participants: Participant[]
 }
 
+function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
+  const map = new Map(current.map((entry) => [entry.id, entry]))
+  for (const entry of incoming) map.set(entry.id, entry)
+  return Array.from(map.values())
+}
+
+function mergeSessionState(current: SessionState, incoming: SessionState): SessionState {
+  return {
+    teamName: incoming.teamName.trim() ? incoming.teamName : current.teamName,
+    date: incoming.date.trim() ? incoming.date : current.date,
+    items: mergeById(current.items, incoming.items),
+    clusters: mergeById(current.clusters, incoming.clusters),
+    currentStep: Math.max(current.currentStep, incoming.currentStep) as StepNum,
+  }
+}
+
 function roomUrl(roomId: string): string {
   return `/api/room/${encodeURIComponent(roomId)}`
 }
@@ -108,19 +124,64 @@ export function useSession(joinInfo: JoinInfo) {
   const [syncError, setSyncError] = useState<string | null>(null)
   const isRemoteUpdate = useRef(false)
   const isPushing = useRef(false)
-  const pendingPushes = useRef(0)
-  const latestPushId = useRef(0)
+  const localVersion = useRef(0)
+  const stateRef = useRef<SessionState>(defaultState)
+  const pushChain = useRef(Promise.resolve())
   const joinInfoRef = useRef(joinInfo)
   joinInfoRef.current = joinInfo
 
-  const applyRoom = useCallback((data: RoomResponse) => {
-    if (!isPushing.current) {
-      isRemoteUpdate.current = true
-      setState(data.state)
-    }
+  const applyRoom = useCallback((data: RoomResponse, replace = false) => {
+    isRemoteUpdate.current = true
+    setState((prev) => {
+      const next = replace ? data.state : mergeSessionState(prev, data.state)
+      stateRef.current = next
+      return next
+    })
+    isRemoteUpdate.current = false
     setParticipants(data.participants)
     setConnected(true)
     setSyncError(null)
+  }, [])
+
+  const enqueuePush = useCallback(() => {
+    localVersion.current++
+    isPushing.current = true
+
+    pushChain.current = pushChain.current
+      .catch(() => undefined)
+      .then(async () => {
+        const versionAtPush = localVersion.current
+        const snapshot = stateRef.current
+        const { roomId, participantId, participantName } = joinInfoRef.current
+
+        try {
+          const data = await roomRequest(roomId, {
+            action: 'update',
+            state: snapshot,
+            participantId,
+            name: participantName,
+          })
+
+          if (versionAtPush === localVersion.current) {
+            isRemoteUpdate.current = true
+            setState((prev) => {
+              const merged = mergeSessionState(prev, data.state)
+              stateRef.current = merged
+              return merged
+            })
+            isRemoteUpdate.current = false
+            setConnected(true)
+            setSyncError(null)
+          }
+        } catch {
+          setConnected(false)
+          setSyncError('Falha ao salvar. Verifique se todos usam o mesmo link da sala.')
+        } finally {
+          if (versionAtPush === localVersion.current) {
+            isPushing.current = false
+          }
+        }
+      })
   }, [])
 
   useEffect(() => {
@@ -136,7 +197,7 @@ export function useSession(joinInfo: JoinInfo) {
           participantId,
           name: participantName,
         })
-        if (active) applyRoom(data)
+        if (active) applyRoom(data, true)
       } catch {
         if (active) {
           setConnected(false)
@@ -149,13 +210,20 @@ export function useSession(joinInfo: JoinInfo) {
 
     const poll = async () => {
       if (document.hidden || isPushing.current) return
+      const versionAtPoll = localVersion.current
       try {
         const data = await roomRequest(roomId, {
           action: 'sync',
           participantId,
           name: participantName,
         })
-        if (active) applyRoom(data)
+        if (
+          active &&
+          versionAtPoll === localVersion.current &&
+          !isPushing.current
+        ) {
+          applyRoom(data)
+        }
       } catch {
         if (active) {
           setConnected(false)
@@ -176,49 +244,26 @@ export function useSession(joinInfo: JoinInfo) {
   }, [joinInfo.roomId, joinInfo.participantId, joinInfo.participantName, applyRoom])
 
   const pushState = useCallback(
-    async (next: SessionState) => {
-      const { roomId, participantId, participantName } = joinInfoRef.current
-      const pushId = ++latestPushId.current
-      pendingPushes.current++
-      isPushing.current = true
-      try {
-        const data = await roomRequest(roomId, {
-          action: 'update',
-          state: next,
-          participantId,
-          name: participantName,
-        })
-        // Ignora respostas antigas se o usuário já fez outra alteração
-        if (pushId === latestPushId.current) {
-          applyRoom(data)
-        }
-      } catch {
-        setConnected(false)
-        setSyncError('Falha ao salvar. Verifique se todos usam o mesmo link da sala.')
-      } finally {
-        pendingPushes.current = Math.max(0, pendingPushes.current - 1)
-        if (pendingPushes.current === 0) {
-          isPushing.current = false
-        }
-        isRemoteUpdate.current = false
-      }
+    (next: SessionState) => {
+      stateRef.current = next
+      enqueuePush()
     },
-    [applyRoom]
+    [enqueuePush]
   )
 
   const updateState = useCallback(
     (updater: (prev: SessionState) => SessionState) => {
       setState((prev) => {
         const next = updater(prev)
+        stateRef.current = next
         if (!isRemoteUpdate.current) {
-          isPushing.current = true
-          void pushState(next)
+          enqueuePush()
         }
         isRemoteUpdate.current = false
         return next
       })
     },
-    [pushState]
+    [enqueuePush]
   )
 
   const setTeamName = useCallback(
@@ -322,7 +367,10 @@ export function useSession(joinInfo: JoinInfo) {
   )
 
   const resetSession = useCallback(() => {
-    void roomRequest(joinInfoRef.current.roomId, { action: 'reset' }).then(applyRoom)
+    void roomRequest(joinInfoRef.current.roomId, { action: 'reset' }).then((data) =>
+      applyRoom(data, true)
+    )
+    stateRef.current = defaultState
     setState(defaultState)
   }, [applyRoom])
 
@@ -351,8 +399,9 @@ export function useSession(joinInfo: JoinInfo) {
 
   const loadSimulation = useCallback(
     (simState: SessionState) => {
+      stateRef.current = simState
       setState(simState)
-      void pushState(simState)
+      pushState(simState)
     },
     [pushState]
   )
