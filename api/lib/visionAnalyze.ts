@@ -1,4 +1,4 @@
-import type { ItemCategory } from '../../src/types.js'
+import type { ItemCategory } from './types.js'
 
 export type BoardLayout = 'auto' | 'start-stop-continue' | 'que-bom-pena-tal'
 

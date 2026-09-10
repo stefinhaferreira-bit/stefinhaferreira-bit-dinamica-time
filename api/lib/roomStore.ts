@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis'
-import type { Participant, SessionState, StepNum } from '../../src/types.js'
+import type { Participant, SessionState, StepNum } from './types.js'
 
 export interface RoomParticipant {
   id: string
