@@ -163,7 +163,7 @@ export function StepPlano({ items, clusters, onUpdateCluster, onBack }: StepPlan
   if (positioned.length === 0) {
     return (
       <div className="space-y-6 text-center">
-        <h2 className="font-display text-xl font-bold text-slate-900">Etapa 4 — Plano de Ação</h2>
+        <h2 className="font-display text-xl font-bold text-slate-900">Etapa 5 — Plano de Ação</h2>
         <p className="text-sm text-slate-500">
           Nenhuma ação posicionada na matriz. Volte à priorização e classifique todas as ações
           consolidadas nos quadrantes.
@@ -179,7 +179,7 @@ export function StepPlano({ items, clusters, onUpdateCluster, onBack }: StepPlan
     <div className="space-y-8">
       <div className="text-center">
         <h2 className="font-display text-xl font-bold text-slate-900 sm:text-2xl">
-          Etapa 4 — Plano de Ação
+          Etapa 5 — Plano de Ação
         </h2>
         <p className="mt-2 text-sm text-slate-500 max-w-2xl mx-auto">
           Todas as categorias da matriz aparecem aqui em <strong>ordem de prioridade</strong>.

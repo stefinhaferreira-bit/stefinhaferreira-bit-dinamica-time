@@ -40,7 +40,7 @@ function mergeSessionState(current: SessionState, incoming: SessionState): Sessi
     date: incoming.date.trim() ? incoming.date : current.date,
     items: mergeById(current.items, incoming.items),
     clusters: mergeById(current.clusters, incoming.clusters),
-    currentStep: Math.max(current.currentStep, incoming.currentStep) as StepNum,
+    currentStep: incoming.currentStep,
   }
 }
 
@@ -310,10 +310,16 @@ export function useSession(joinInfo: JoinInfo) {
   )
 
   const createNewCluster = useCallback(
-    (title: string, tag: string, papel: OrgRole, area: OrgArea = 'Geral') =>
+    (
+      title: string,
+      tag: string,
+      papel: OrgRole,
+      area: OrgArea = 'Geral',
+      category: ItemCategory = 'que_tal'
+    ) =>
       updateState((s) => ({
         ...s,
-        clusters: [...s.clusters, createCluster(title, tag, papel, area)],
+        clusters: [...s.clusters, createCluster(title, tag, papel, area, category)],
       })),
     [updateState]
   )

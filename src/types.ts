@@ -49,6 +49,7 @@ export interface Cluster {
   id: string
   title: string
   tag: string
+  category: ItemCategory
   papel: OrgRole
   area: OrgArea
   quadrant: Quadrant | null
@@ -60,14 +61,23 @@ export interface Cluster {
 export const WORKSHOP_AGENDA = {
   total: '1h30',
   steps: [
-    { minutes: 25, label: 'Coleta' },
-    { minutes: 25, label: 'Consolidação' },
+    { minutes: 20, label: 'Coleta' },
+    { minutes: 20, label: 'Consolidação' },
+    { minutes: 15, label: 'Resumo' },
     { minutes: 20, label: 'Priorização' },
-    { minutes: 20, label: 'Plano' },
+    { minutes: 15, label: 'Plano' },
   ],
 } as const
 
-export type StepNum = 1 | 2 | 3 | 4
+export type StepNum = 1 | 2 | 3 | 4 | 5
+
+export const STEP_LABELS: Record<StepNum, string> = {
+  1: 'Coleta',
+  2: 'Consolidação',
+  3: 'Resumo',
+  4: 'Priorização',
+  5: 'Plano',
+}
 
 export interface SessionState {
   teamName: string
@@ -251,12 +261,14 @@ export function createCluster(
   title: string,
   tag = '',
   papel: OrgRole = 'PM',
-  area: OrgArea = 'Geral'
+  area: OrgArea = 'Geral',
+  category: ItemCategory = 'que_tal'
 ): Cluster {
   return {
     id: crypto.randomUUID(),
     title,
     tag,
+    category,
     papel,
     area,
     quadrant: null,
@@ -308,8 +320,13 @@ function extractShortTitle(text: string): string {
   return part.length > 60 ? `${part.slice(0, 57)}...` : part
 }
 
-function bucketKey(tag: string, papel: OrgRole, area: OrgArea): string {
-  return `${tag}|${papel}|${area}`
+const THEME_CONSOLIDATION: Record<
+  ItemCategory,
+  { tag: string; titlePrefix: string }
+> = {
+  que_bom: { tag: 'Que bom', titlePrefix: 'Manter' },
+  que_pena: { tag: 'Que pena', titlePrefix: 'Melhorar' },
+  que_tal: { tag: 'Que tal', titlePrefix: 'Experimentar' },
 }
 
 export function autoConsolidateItems(items: Item[]): {
@@ -317,43 +334,28 @@ export function autoConsolidateItems(items: Item[]): {
   updatedItems: Item[]
 } {
   const unassigned = items.filter((i) => !i.clusterId)
-  const buckets = new Map<
-    string,
-    { rule: ConsolidationRule; papel: OrgRole; area: OrgArea; itemIds: string[] }
-  >()
-
-  for (const item of unassigned) {
-    const rule = suggestConsolidationRule(item.text)
-    const area = inferArea(item.text)
-    const papel = inferPapel(item.text, rule, item.category)
-    const key = bucketKey(rule.tag, papel, area)
-    if (!buckets.has(key)) {
-      buckets.set(key, { rule, papel, area, itemIds: [] })
-    }
-    buckets.get(key)!.itemIds.push(item.id)
-  }
-
   const newClusters: Cluster[] = []
   const itemClusterMap = new Map<string, string>()
 
-  for (const [, { rule, papel, area, itemIds }] of buckets) {
-    for (let i = 0; i < itemIds.length; i += MAX_POSTITS_PER_CLUSTER) {
-      const chunkIds = itemIds.slice(i, i + MAX_POSTITS_PER_CLUSTER)
-      const chunkItems = chunkIds.map((id) => items.find((x) => x.id === id)!)
-      const partLabel = itemIds.length > MAX_POSTITS_PER_CLUSTER
-        ? ` #${Math.floor(i / MAX_POSTITS_PER_CLUSTER) + 1}`
-        : ''
+  for (const category of ['que_bom', 'que_pena', 'que_tal'] as ItemCategory[]) {
+    const themeItems = unassigned.filter((i) => i.category === category)
+    const theme = THEME_CONSOLIDATION[category]
 
-      let title: string
-      if (chunkItems.length === 1) {
-        title = `${extractShortTitle(chunkItems[0].text)} (${papel} · ${area})`
-      } else {
-        title = `${rule.titlePrefix} — ${papel} · ${area}${partLabel}`
-      }
+    for (let i = 0; i < themeItems.length; i += MAX_POSTITS_PER_CLUSTER) {
+      const chunk = themeItems.slice(i, i + MAX_POSTITS_PER_CLUSTER)
+      const partLabel =
+        themeItems.length > MAX_POSTITS_PER_CLUSTER
+          ? ` #${Math.floor(i / MAX_POSTITS_PER_CLUSTER) + 1}`
+          : ''
 
-      const cluster = createCluster(title, rule.tag, papel, area)
+      const title =
+        chunk.length === 1
+          ? extractShortTitle(chunk[0].text)
+          : `${theme.titlePrefix} — ${theme.tag}${partLabel}`
+
+      const cluster = createCluster(title, theme.tag, 'PM', 'Geral', category)
       newClusters.push(cluster)
-      for (const id of chunkIds) itemClusterMap.set(id, cluster.id)
+      for (const item of chunk) itemClusterMap.set(item.id, cluster.id)
     }
   }
 
@@ -379,6 +381,19 @@ export function generateRoomCode(): string {
 
 export function getClusterItems(clusterId: string, items: Item[]): Item[] {
   return items.filter((i) => i.clusterId === clusterId)
+}
+
+export function getConvergenceClusters(clusters: Cluster[], items: Item[]): Cluster[] {
+  return clusters.filter((c) => {
+    const cat = getClusterCategory(c, items)
+    return cat === 'que_pena' || cat === 'que_tal'
+  })
+}
+
+export function getClusterCategory(cluster: Cluster, items: Item[]): ItemCategory {
+  if (cluster.category) return cluster.category
+  const clusterItems = getClusterItems(cluster.id, items)
+  return clusterItems[0]?.category ?? 'que_tal'
 }
 
 export function getUnassignedItems(items: Item[]): Item[] {

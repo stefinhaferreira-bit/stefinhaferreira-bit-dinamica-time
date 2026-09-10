@@ -9,9 +9,10 @@ interface StepIndicatorProps {
 
 const STEPS: { num: StepNum; label: string; desc: string }[] = [
   { num: 1, label: 'Coleta', desc: 'Que bom, Que pena, Que tal' },
-  { num: 2, label: 'Consolidação', desc: 'Agrupar em ações' },
-  { num: 3, label: 'Priorização', desc: 'Impacto × Esforço' },
-  { num: 4, label: 'Plano', desc: 'Ganhos rápidos + responsáveis' },
+  { num: 2, label: 'Consolidação', desc: 'Por tema' },
+  { num: 3, label: 'Resumo', desc: 'Contagem + convergência' },
+  { num: 4, label: 'Priorização', desc: 'Impacto × Esforço' },
+  { num: 5, label: 'Plano', desc: 'Ações e responsáveis' },
 ]
 
 export function StepIndicator({ currentStep, onStepClick, freeNavigation }: StepIndicatorProps) {
@@ -20,7 +21,7 @@ export function StepIndicator({ currentStep, onStepClick, freeNavigation }: Step
       {STEPS.map((step, idx) => {
         const isActive = currentStep === step.num
         const isDone = currentStep > step.num
-        const canClick = freeNavigation || step.num <= currentStep
+        const canClick = freeNavigation !== false
 
         return (
           <div key={step.num} className="flex items-center gap-2">

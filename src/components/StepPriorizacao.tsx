@@ -129,11 +129,11 @@ export function StepPriorizacao({ clusters, onSetQuadrant, onBack, onNext }: Ste
     <div className="space-y-8">
       <div className="text-center">
         <h2 className="font-display text-xl font-bold text-slate-900 sm:text-2xl">
-          Etapa 3 — Priorização das Ações
+          Etapa 4 — Priorização das Ações
         </h2>
         <p className="mt-2 text-sm text-slate-500 max-w-2xl mx-auto">
-          Posicione cada <strong>ação consolidada</strong> na matriz Impacto × Esforço.
-          No plano, todas as categorias aparecem em <strong>ordem de prioridade</strong> —
+          Posicione as ações de <strong>Que pena</strong> e <strong>Que tal</strong> na matriz
+          Impacto × Esforço. No plano, elas aparecem em <strong>ordem de prioridade</strong> —
           o time decide o que fazer e quando.
         </p>
       </div>

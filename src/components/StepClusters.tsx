@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import type { Cluster, Item, OrgArea, OrgRole } from '../types'
+import type { Cluster, Item, ItemCategory, OrgArea, OrgRole } from '../types'
 import {
   CATEGORY_CONFIG,
+  getClusterCategory,
   getClusterItems,
   getUnassignedItems,
   ORG_AREA_CONFIG,
@@ -14,7 +15,13 @@ import { PostIt } from './PostIt'
 interface StepClustersProps {
   items: Item[]
   clusters: Cluster[]
-  onCreateCluster: (title: string, tag: string, papel: OrgRole, area: OrgArea) => void
+  onCreateCluster: (
+    title: string,
+    tag: string,
+    papel: OrgRole,
+    area: OrgArea,
+    category: ItemCategory
+  ) => void
   onUpdateCluster: (id: string, field: keyof Cluster, value: string) => void
   onDeleteCluster: (id: string) => void
   onAssignToCluster: (itemId: string, clusterId: string | null) => void
@@ -24,6 +31,9 @@ interface StepClustersProps {
 }
 
 const TAG_COLORS: Record<string, string> = {
+  'Que bom': 'from-emerald-500 to-emerald-600',
+  'Que pena': 'from-rose-500 to-rose-600',
+  'Que tal': 'from-sky-500 to-sky-600',
   Rituais: 'from-violet-500 to-violet-600',
   Indicadores: 'from-blue-500 to-blue-600',
   Desenvolvimento: 'from-cyan-500 to-cyan-600',
@@ -31,6 +41,8 @@ const TAG_COLORS: Record<string, string> = {
   Comunicação: 'from-amber-500 to-amber-600',
   Governança: 'from-indigo-500 to-indigo-600',
 }
+
+const THEME_CATEGORIES: ItemCategory[] = ['que_bom', 'que_pena', 'que_tal']
 
 const DEFAULT_TAG_COLOR = 'from-brand-500 to-brand-600'
 
@@ -304,6 +316,7 @@ export function StepClusters({
   const [newTag, setNewTag] = useState('')
   const [newPapel, setNewPapel] = useState<OrgRole>('PM')
   const [newArea, setNewArea] = useState<OrgArea>('Geral')
+  const [newCategory, setNewCategory] = useState<ItemCategory>('que_tal')
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null)
 
   const unassigned = getUnassignedItems(items)
@@ -314,7 +327,8 @@ export function StepClusters({
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTitle.trim()) return
-    onCreateCluster(newTitle.trim(), newTag.trim(), newPapel, newArea)
+    const tag = newTag.trim() || CATEGORY_CONFIG[newCategory].label
+    onCreateCluster(newTitle.trim(), tag, newPapel, newArea, newCategory)
     setNewTitle('')
     setNewTag('')
   }
@@ -335,8 +349,8 @@ export function StepClusters({
           Etapa 2 — Consolidação em Ações
         </h2>
         <p className="mt-2 text-sm text-slate-500 max-w-3xl mx-auto">
-          Agrupe post-its em <strong>ações consolidadas</strong>. Cada quadro é uma ação —
-          clique para ver os post-its e editar papel/área.
+          Agrupe post-its por <strong>tema</strong> (Que bom · Que pena · Que tal).
+          Cada quadro é uma ação — clique para ver os post-its e editar.
         </p>
       </div>
 
@@ -363,7 +377,7 @@ export function StepClusters({
 
       <div className="flex flex-wrap justify-center gap-3">
         <button type="button" onClick={onAutoConsolidate} className="btn-secondary text-sm">
-          Consolidar automaticamente (por tema + papel + área, máx. 2 post-its/ação)
+          Consolidar automaticamente por tema (máx. 2 post-its por ação)
         </button>
       </div>
 
@@ -400,6 +414,15 @@ export function StepClusters({
           >
             {ORG_AREAS.map((a) => (
               <option key={a} value={a}>{ORG_AREA_CONFIG[a].label}</option>
+            ))}
+          </select>
+          <select
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value as ItemCategory)}
+            className="input-field w-full sm:w-36"
+          >
+            {THEME_CATEGORIES.map((c) => (
+              <option key={c} value={c}>{CATEGORY_CONFIG[c].label}</option>
             ))}
           </select>
           <button type="submit" className="btn-primary shrink-0" disabled={!newTitle.trim()}>
@@ -440,18 +463,36 @@ export function StepClusters({
           <p className="mt-1 text-xs text-slate-400">Use a consolidação automática ou crie manualmente</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          {clusters.map((cluster) => (
-            <ClusterBoardCard
-              key={cluster.id}
-              cluster={cluster}
-              items={items}
-              draggedItemId={draggedItemId}
-              isSelected={selectedClusterId === cluster.id}
-              onClick={() => setSelectedClusterId(cluster.id)}
-              onDrop={handleDropOnCluster}
-            />
-          ))}
+        <div className="space-y-8">
+          {THEME_CATEGORIES.map((category) => {
+            const themeClusters = clusters.filter(
+              (c) => getClusterCategory(c, items) === category
+            )
+            if (themeClusters.length === 0) return null
+            const config = CATEGORY_CONFIG[category]
+            return (
+              <div key={category}>
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+                  <span>{config.icon}</span>
+                  {config.label}
+                  <span className="text-slate-400">({themeClusters.length})</span>
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                  {themeClusters.map((cluster) => (
+                    <ClusterBoardCard
+                      key={cluster.id}
+                      cluster={cluster}
+                      items={items}
+                      draggedItemId={draggedItemId}
+                      isSelected={selectedClusterId === cluster.id}
+                      onClick={() => setSelectedClusterId(cluster.id)}
+                      onDrop={handleDropOnCluster}
+                    />
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -469,7 +510,7 @@ export function StepClusters({
       <div className="flex items-center justify-between">
         <button type="button" onClick={onBack} className="btn-secondary">← Voltar</button>
         <button type="button" onClick={onNext} className="btn-primary" disabled={!canProceed}>
-          Avançar para Priorização →
+          Avançar para Resumo →
         </button>
       </div>
 

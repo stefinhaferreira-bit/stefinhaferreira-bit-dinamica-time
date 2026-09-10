@@ -1,6 +1,6 @@
 export type ItemCategory = 'que_bom' | 'que_pena' | 'que_tal'
 
-export type StepNum = 1 | 2 | 3 | 4
+export type StepNum = 1 | 2 | 3 | 4 | 5
 
 export interface Item {
   id: string
@@ -13,6 +13,7 @@ export interface Cluster {
   id: string
   title: string
   tag: string
+  category?: ItemCategory
   papel: string
   area: string
   quadrant: string | null

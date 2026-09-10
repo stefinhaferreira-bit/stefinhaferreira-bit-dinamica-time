@@ -13,9 +13,10 @@ function cluster(
   quadrant: Quadrant,
   responsavel: string,
   suporte: string,
-  prazo: string
+  prazo: string,
+  category: ItemCategory = 'que_tal'
 ): Cluster {
-  return { id, title, tag, papel, area, quadrant, responsavel, suporte, prazo }
+  return { id, title, tag, category, papel, area, quadrant, responsavel, suporte, prazo }
 }
 
 const C01 = 'c-rituais-pm-ti-1'
@@ -97,12 +98,15 @@ const SIM_CLUSTERS: Cluster[] = [
   cluster(C14, 'Pesquisa de saúde do time — PMO · RH', 'Indicadores', 'PMO', 'RH', 'quick-wins', 'Diego (Analista)', 'Beatriz (Coord.)', '2026-04-20'),
 ]
 
-export function getSimulationState(startStep: 1 | 2 | 3 | 4 = 1): SessionState {
+export function getSimulationState(startStep: 1 | 2 | 3 | 4 | 5 = 1): SessionState {
   return {
     teamName: 'Time de Produto e Operações',
     date: new Date().toISOString().split('T')[0],
     items: SIM_ITEMS.map((i) => ({ ...i })),
-    clusters: SIM_CLUSTERS.map((c) => ({ ...c })),
+    clusters: SIM_CLUSTERS.map((c) => {
+      const sample = SIM_ITEMS.find((i) => i.clusterId === c.id)
+      return { ...c, category: sample?.category ?? c.category ?? 'que_tal' }
+    }),
     currentStep: startStep,
   }
 }

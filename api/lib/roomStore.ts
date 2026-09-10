@@ -1,5 +1,5 @@
 import { Redis } from '@upstash/redis'
-import type { Participant, SessionState, StepNum } from './types.js'
+import type { Participant, SessionState } from './types.js'
 
 export interface RoomParticipant {
   id: string
@@ -77,7 +77,7 @@ export function mergeSessionState(current: SessionState, incoming: SessionState)
     date: incoming.date.trim() ? incoming.date : current.date,
     items,
     clusters,
-    currentStep: Math.max(current.currentStep, incoming.currentStep) as StepNum,
+    currentStep: incoming.currentStep,
   }
 }
 

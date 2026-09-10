@@ -9,9 +9,10 @@ import { StepPlano } from './components/StepPlano'
 import { ModeSwitcher, type WorkshopMode } from './components/ModeSwitcher'
 import { StepPhotoImport } from './components/StepPhotoImport'
 import { StepPriorizacao } from './components/StepPriorizacao'
+import { StepResumo } from './components/StepResumo'
 import { getSimulationState } from './data/simulation'
 import { clearJoinInfo, loadJoinInfo, useSession } from './hooks/useSession'
-import type { JoinInfo } from './types'
+import { getConvergenceClusters, type JoinInfo } from './types'
 import type { PhotoImportEntry } from './components/StepPhotoImport'
 
 export default function App() {
@@ -39,6 +40,7 @@ function CollaborativeApp({
 }) {
   const session = useSession(joinInfo)
   const { state } = session
+  const convergenceClusters = getConvergenceClusters(state.clusters, state.items)
   const [isSimulation, setIsSimulation] = useState(false)
   const [showSimBanner, setShowSimBanner] = useState(false)
   const [workshopMode, setWorkshopMode] = useState<WorkshopMode>('online')
@@ -116,7 +118,6 @@ function CollaborativeApp({
             <StepIndicator
               currentStep={state.currentStep}
               onStepClick={session.setStep}
-              freeNavigation={isSimulation || photoReady}
             />
           )}
         </div>
@@ -156,20 +157,29 @@ function CollaborativeApp({
         )}
 
         {state.currentStep === 3 && (workshopMode === 'online' || photoReady) && (
-          <StepPriorizacao
+          <StepResumo
+            items={state.items}
             clusters={state.clusters}
-            onSetQuadrant={session.setClusterQuadrant}
             onBack={() => session.setStep(2)}
             onNext={() => session.setStep(4)}
           />
         )}
 
         {state.currentStep === 4 && (workshopMode === 'online' || photoReady) && (
+          <StepPriorizacao
+            clusters={convergenceClusters}
+            onSetQuadrant={session.setClusterQuadrant}
+            onBack={() => session.setStep(3)}
+            onNext={() => session.setStep(5)}
+          />
+        )}
+
+        {state.currentStep === 5 && (workshopMode === 'online' || photoReady) && (
           <StepPlano
             items={state.items}
-            clusters={state.clusters}
+            clusters={convergenceClusters}
             onUpdateCluster={session.updateCluster}
-            onBack={() => session.setStep(3)}
+            onBack={() => session.setStep(4)}
           />
         )}
       </div>
