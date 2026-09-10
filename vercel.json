@@ -1,7 +1,5 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": null,
+  "framework": "vite",
   "functions": {
     "api/vision/analyze.ts": {
       "maxDuration": 60,
