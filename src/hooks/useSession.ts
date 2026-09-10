@@ -108,6 +108,8 @@ export function useSession(joinInfo: JoinInfo) {
   const [syncError, setSyncError] = useState<string | null>(null)
   const isRemoteUpdate = useRef(false)
   const isPushing = useRef(false)
+  const pendingPushes = useRef(0)
+  const latestPushId = useRef(0)
   const joinInfoRef = useRef(joinInfo)
   joinInfoRef.current = joinInfo
 
@@ -176,6 +178,8 @@ export function useSession(joinInfo: JoinInfo) {
   const pushState = useCallback(
     async (next: SessionState) => {
       const { roomId, participantId, participantName } = joinInfoRef.current
+      const pushId = ++latestPushId.current
+      pendingPushes.current++
       isPushing.current = true
       try {
         const data = await roomRequest(roomId, {
@@ -184,12 +188,18 @@ export function useSession(joinInfo: JoinInfo) {
           participantId,
           name: participantName,
         })
-        applyRoom(data)
+        // Ignora respostas antigas se o usuário já fez outra alteração
+        if (pushId === latestPushId.current) {
+          applyRoom(data)
+        }
       } catch {
         setConnected(false)
         setSyncError('Falha ao salvar. Verifique se todos usam o mesmo link da sala.')
       } finally {
-        isPushing.current = false
+        pendingPushes.current = Math.max(0, pendingPushes.current - 1)
+        if (pendingPushes.current === 0) {
+          isPushing.current = false
+        }
         isRemoteUpdate.current = false
       }
     },
@@ -201,6 +211,7 @@ export function useSession(joinInfo: JoinInfo) {
       setState((prev) => {
         const next = updater(prev)
         if (!isRemoteUpdate.current) {
+          isPushing.current = true
           void pushState(next)
         }
         isRemoteUpdate.current = false
